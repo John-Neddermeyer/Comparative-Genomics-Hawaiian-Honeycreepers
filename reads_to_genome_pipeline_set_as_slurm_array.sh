@@ -45,7 +45,8 @@ rm ${line_N}.second.bam.bai
 samtools index -@10 ${line_N}.third.bam
 #load gatk3 for indel re-aligning
 module purge
-module load anaconda3/2020.11
+module load anaconda3/2023.09
+#gatk version 3.8-1-0-gf15c1c3ef
 conda activate gatk3_env
 
 srun gatk -T RealignerTargetCreator \
@@ -60,6 +61,7 @@ conda deactivate
 rm ${line_N}.third.bam
 rm ${line_N}.third.bam.bai
 #take input from indel realigner and call genotypes
+#bcftools version 1.11
 conda activate bcftools_env
 srun bcftools mpileup --threads 18 -f $REF ${line_N}.indel.realigner.bam \
         -Q 20 -q 20 --output-type uv | bcftools call --threads 18 -c -O z \
