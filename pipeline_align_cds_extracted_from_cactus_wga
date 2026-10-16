@@ -1,0 +1,34 @@
+#!/bin/bash
+#SBATCH--job-name=alignment
+#SBATCH--output=/path/to/log/align_log%a.log
+#SBATCH--time=05:00:00
+#SBATCH--chdir=/path/to/dir
+#SBATCH--cpus-per-task=1
+#SBATCH--mem=10G
+#SBATCH--array=1-1568
+
+line_N=$( awk "NR==$SLURM_ARRAY_TASK_ID" fasta_list.txt)
+#parsing line_N input to use parts of line_N as input elsewhere
+field_1=$(echo "$line_N" | sed 's/_cleaned.fasta//g')
+srun java -jar macse_v2.07.jar -prog alignSequences -seq ${line_N} \
+-out_NT ${field_1}_output_NT.fasta_tmp -out_AA ${field_1}_AA.fasta_tmp
+module load anaconda3
+conda activate trimal_env
+srun trimal -in ${field_1}_output_NT.fasta_tmp -out ${field_1}_NT_trim.fasta_tmp -automated1
+conda deactivate
+module purge
+srun java -jar macse_v2.07.jar -prog refineAlignment -optim 2 \
+-align ${field_1}_NT_trim.fasta_tmp -out_NT ${field_1}_NT_trim_real.fasta_tmp \
+-out_AA ${field_1}_postrefinealign_AA.fasta_tmp
+module load anaconda3
+conda activate trimal_env
+srun trimal -in nucleotide_alignments/${field_1}_NT_trim_real.fasta_tmp \
+-out nucleotide_alignments/${field_1}_NT_trim_real_trim.fasta_tmp -automated1
+conda deactivate
+module purge
+srun java -jar /scratch/jhn43/tools/macse_v2.07.jar -prog exportAlignment \
+-align nucleotide_alignments/${field_1}_NT_trim_real_trim.fasta_tmp \
+-codonForInternalStop NNN -codonForInternalFS --- -charForRemainingFS - \
+-out_NT nucleotide_alignments/${field_1}_NT_alignment_cleaned.fasta \
+-out_AA amino_acid_alignments/${field_1}_AA_alignment_cleaned.fasta
+rm ${field_1}*tmp
